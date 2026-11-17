@@ -2,7 +2,7 @@
 'use strict';
 
 (() => {
-  const LAUNCHER_VERSION = '1.0.3';
+  const LAUNCHER_VERSION = '1.0.4';
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
 
@@ -553,13 +553,16 @@
   // iOS 터치 보정
   //
   // iOS Safari 18.2부터 손가락으로 탭해서 생긴 click 이벤트의 pointerType이 "touch"가 아니라
-  // "mouse"로 들어온다 (WebKit 버그 282988). 게임의 화면 왼쪽 B 버튼(.sty-touch-back)은
-  // pointerType이 touch/pen인 click만 받기 때문에, 아이폰에서는 눌러도 아무 일이 없다.
-  // 그래서 미니게임처럼 B로만 나갈 수 있는 화면에 갇힌다.
+  // "mouse"로 들어온다 (WebKit 버그 282988). 게임의 메뉴·미니게임 화면(story UI)은 터치 탭을
+  // pointerType이 touch/pen인 click으로만 알아본다. 그래서 아이폰에서는
+  //  - 왼쪽 B 버튼(.sty-touch-back)을 눌러도 아무 일이 없고
+  //  - "화면을 탭하면 A" 동작도 막혀서, 베팅 금액 확정처럼 A로만 넘어가는 화면에서 멈춘다.
   // 방금 손가락 탭이 있었는데 click이 "mouse"로 온 경우에만, 같은 click을 "touch"로 고쳐 다시 보낸다.
-  // 게임 코드는 건드리지 않고, B 버튼 click만 대상으로 한다.
+  // 안드로이드에서 게임이 원래 동작하는 것과 같아진다. 게임 코드는 건드리지 않는다.
+  // (v1.0.3은 B 버튼만 고쳤고, v1.0.4부터 모든 터치 탭을 고친다.)
 
-  const TOUCH_FIX_TARGET = '.sty-touch-back';
+  // 글자 입력·선택 상자는 iOS 기본 동작(포커스·키보드)을 건드리지 않도록 그대로 둔다
+  const TOUCH_FIX_SKIP = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
   const TOUCH_FIX_WINDOW_MS = 1000;
 
   function installTouchClickFix(win) {
@@ -587,7 +590,7 @@
       if (lastPointerType !== 'touch' && lastPointerType !== 'pen') return;
       if (e.timeStamp - lastPointerAt > TOUCH_FIX_WINDOW_MS) return;
       const target = e.target;
-      if (!target || typeof target.closest !== 'function' || !target.closest(TOUCH_FIX_TARGET)) return;
+      if (!target || typeof target.closest !== 'function' || target.closest(TOUCH_FIX_SKIP)) return;
       e.stopImmediatePropagation();
       e.preventDefault();
       const fixed = new win.PointerEvent('click', {
