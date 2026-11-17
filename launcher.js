@@ -2,7 +2,7 @@
 'use strict';
 
 (() => {
-  const LAUNCHER_VERSION = '1.0.2';
+  const LAUNCHER_VERSION = '1.0.3';
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
 
@@ -550,6 +550,58 @@
   }
 
   // ---------------------------------------------------------------------------
+  // iOS 터치 보정
+  //
+  // iOS Safari 18.2부터 손가락으로 탭해서 생긴 click 이벤트의 pointerType이 "touch"가 아니라
+  // "mouse"로 들어온다 (WebKit 버그 282988). 게임의 화면 왼쪽 B 버튼(.sty-touch-back)은
+  // pointerType이 touch/pen인 click만 받기 때문에, 아이폰에서는 눌러도 아무 일이 없다.
+  // 그래서 미니게임처럼 B로만 나갈 수 있는 화면에 갇힌다.
+  // 방금 손가락 탭이 있었는데 click이 "mouse"로 온 경우에만, 같은 click을 "touch"로 고쳐 다시 보낸다.
+  // 게임 코드는 건드리지 않고, B 버튼 click만 대상으로 한다.
+
+  const TOUCH_FIX_TARGET = '.sty-touch-back';
+  const TOUCH_FIX_WINDOW_MS = 1000;
+
+  function installTouchClickFix(win) {
+    if (!win || win.__resoTouchClickFix) return;
+    let doc;
+    try { doc = win.document; } catch { return; } // 다른 출처면 건드리지 않음
+    if (!doc) return;
+    win.__resoTouchClickFix = true;
+
+    let lastPointerType = '';
+    let lastPointerAt = -Infinity;
+    let lastPointerId = 1;
+    const rewritten = new WeakSet();
+    const notePointer = (e) => {
+      lastPointerType = e.pointerType;
+      lastPointerAt = e.timeStamp;
+      lastPointerId = e.pointerId;
+    };
+    win.addEventListener('pointerdown', notePointer, true);
+    win.addEventListener('pointerup', notePointer, true);
+
+    win.addEventListener('click', (e) => {
+      if (rewritten.has(e) || e.pointerType !== 'mouse') return;
+      // 바로 앞의 포인터가 손가락(펜)이었을 때만 고친다. 진짜 마우스 클릭은 그대로 둔다.
+      if (lastPointerType !== 'touch' && lastPointerType !== 'pen') return;
+      if (e.timeStamp - lastPointerAt > TOUCH_FIX_WINDOW_MS) return;
+      const target = e.target;
+      if (!target || typeof target.closest !== 'function' || !target.closest(TOUCH_FIX_TARGET)) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      const fixed = new win.PointerEvent('click', {
+        bubbles: true, cancelable: true, composed: true, view: win,
+        clientX: e.clientX, clientY: e.clientY, screenX: e.screenX, screenY: e.screenY,
+        button: 0, buttons: 0, detail: e.detail || 1,
+        pointerId: lastPointerId, pointerType: 'touch', isPrimary: true,
+      });
+      rewritten.add(fixed);
+      target.dispatchEvent(fixed);
+    }, true);
+  }
+
+  // ---------------------------------------------------------------------------
   // 게임 실행
 
   async function play() {
@@ -577,6 +629,9 @@
 
   function wire() {
     $('#btn-play').addEventListener('click', play);
+    $('#game-frame').addEventListener('load', (e) => {
+      try { installTouchClickFix(e.target.contentWindow); } catch (err) { console.warn('touch fix', err); }
+    });
 
     $('#pick-zip').addEventListener('change', (e) => {
       const files = [...e.target.files];
@@ -651,6 +706,14 @@
     if (isIOS && !isStandalone && !sessionStorage.getItem(IGNORE_BROWSER_KEY)) {
       $('#notice-browser').hidden = false;
     }
+    // 실행기가 새 버전으로 바뀌면(서비스 워커 교체) 게임 중이 아닐 때 한 번 새로 고친다
+    const hadController = !!navigator.serviceWorker.controller;
+    let reloadedForUpdate = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController || reloadedForUpdate || state.busy || document.body.classList.contains('playing')) return;
+      reloadedForUpdate = true;
+      location.reload();
+    });
     state.swReady = navigator.serviceWorker.register('sw.js', { scope: './' })
       .then((reg) => { state.swRegistration = reg; return navigator.serviceWorker.ready; })
       .catch((err) => {

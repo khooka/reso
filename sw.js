@@ -8,7 +8,7 @@
  */
 'use strict';
 
-const VERSION = '1.0.2';
+const VERSION = '1.0.3';
 const SHELL_CACHE = 'reso-shell-' + VERSION;
 const PACK_CACHE = 'reso-packs-v1';
 const META_CACHE = 'reso-meta-v1';
