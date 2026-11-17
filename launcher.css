@@ -97,6 +97,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .check { display: flex; gap: 10px; align-items: center; margin-top: 12px; color: var(--muted); font-size: 14px; line-height: 1.4; }
 .check input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
 .slider { display: block; color: var(--muted); font-size: 14px; }
+.sub-h { font-size: 15px; margin: 18px 0 8px; }
 .slider output { color: var(--text); margin-left: 6px; }
 .slider input { width: 100%; margin-top: 6px; }
 
@@ -199,4 +200,16 @@ body.playing #launcher { display: none; }
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px 16px 8px;
+}
+/* 가로 화면(높이가 낮을 때)에는 설정과 버튼을 좌우로 나눠 스크롤 없이 보이게 */
+@media (orientation: landscape) and (max-height: 520px) {
+  #game-menu .sheet {
+    width: min(760px, 94%);
+    display: grid;
+    grid-template-columns: 1.3fr 1fr;
+    gap: 0 20px;
+    align-items: start;
+  }
+  #game-menu .sheet-col:last-child { padding-top: 4px; }
+  #game-menu .sheet-col:last-child .row > * { flex-basis: 100%; }
 }

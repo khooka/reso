@@ -8,7 +8,7 @@
  */
 'use strict';
 
-const VERSION = '1.0.4';
+const VERSION = '1.0.5';
 const SHELL_CACHE = 'reso-shell-' + VERSION;
 const PACK_CACHE = 'reso-packs-v1';
 const META_CACHE = 'reso-meta-v1';
@@ -243,6 +243,49 @@ function mimeFor(path, entry) {
   return EXT_MIME[ext] || 'application/octet-stream';
 }
 
+// ---------------------------------------------------------------------------
+// 메뉴·미니게임 스와이프 방향 보정 (선택)
+//
+// 게임의 메뉴 화면(story UI)은 스와이프를 목록 스크롤처럼 처리한다:
+// 손가락을 위로 밀면 커서가 아래로, 오른쪽으로 밀면 왼쪽으로 간다.
+// 필드 이동(손가락 방향 그대로)과 반대라서, 실행기 설정이 "손가락 방향"이면
+// 그 부분의 부호만 바꾼 storyUi 파일을 내준다. 패턴을 못 찾으면(게임 업데이트 등) 원본 그대로.
+
+const STORY_UI_RE = /^app\/storyUi-[^/]+\.js$/;
+const patchedTexts = new Map(); // key -> 패치된 글 또는 null(패턴 없음)
+
+function patchSwipeDirection(src) {
+  const dragRe = /Math\.trunc\(-(\w+)\/(\w+)\);let (\w+)=Math\.abs\((\w+)\)>Math\.abs\(\1\)\?Math\.trunc\(-\4\/(\w+)\)/g;
+  const flingRe = /\.route\((\w+)<0\?"down":"up"\)/g;
+  if ((src.match(dragRe) || []).length !== 1 || (src.match(flingRe) || []).length !== 1) return null;
+  return src
+    .replace(dragRe, 'Math.trunc($1/$2);let $3=Math.abs($4)>Math.abs($1)?Math.trunc($4/$5)')
+    .replace(flingRe, '.route($1<0?"up":"down")');
+}
+
+async function swipeFollowsFinger() {
+  try {
+    const meta = await caches.open(META_CACHE);
+    const res = await meta.match(metaUrl('settings.json'));
+    if (!res) return true; // 기본값: 손가락 방향
+    const s = await res.json();
+    return s?.swipe !== 'scroll';
+  } catch {
+    return true;
+  }
+}
+
+async function patchedStoryUi(path, entry, pack, blob) {
+  if (!STORY_UI_RE.test(path) || !(await swipeFollowsFinger())) return null;
+  const [, offset, size] = entry;
+  const key = pack.id + ':' + offset + ':' + size;
+  if (!patchedTexts.has(key)) {
+    const src = await blob.slice(offset, offset + size).text();
+    patchedTexts.set(key, patchSwipeDirection(src));
+  }
+  return patchedTexts.get(key);
+}
+
 function textResponse(status, message) {
   return new Response(message, { status, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
 }
@@ -261,6 +304,14 @@ async function serveGame(path, req) {
   const blob = await getPackBlob(pack.id);
   if (!blob) {
     return textResponse(503, '게임 데이터 일부가 없습니다. 실행기에서 packs.zip을 다시 설치하세요. (' + pack.id.slice(0, 8) + ')');
+  }
+
+  const patched = await patchedStoryUi(path, entry, pack, blob);
+  if (patched) {
+    return new Response(req.method === 'HEAD' ? null : patched, {
+      status: 200,
+      headers: { 'Content-Type': mimeFor(path, entry), 'Cache-Control': 'no-cache', 'X-Reso-Patched': 'swipe' },
+    });
   }
 
   const headers = {

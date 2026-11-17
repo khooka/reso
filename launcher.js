@@ -2,7 +2,7 @@
 'use strict';
 
 (() => {
-  const LAUNCHER_VERSION = '1.0.4';
+  const LAUNCHER_VERSION = '1.0.5';
   const $ = (sel) => document.querySelector(sel);
   const $$ = (sel) => [...document.querySelectorAll(sel)];
 
@@ -386,7 +386,7 @@
     await caches.delete(PACK_CACHE);
     const meta = await caches.open(META_CACHE);
     for (const req of await meta.keys()) {
-      if (!/before-import\.json$/.test(req.url)) await meta.delete(req);
+      if (!/\/(before-import|settings)\.json$/.test(req.url)) await meta.delete(req);
     }
     await tellServiceWorker({ type: 'RESO_RELOAD_MANIFEST' });
     $('#progress').hidden = true;
@@ -511,9 +511,9 @@
   }
 
   // ---------------------------------------------------------------------------
-  // 화면 여백 설정
+  // 화면 여백·스와이프 방향 설정
 
-  const DEFAULT_SETTINGS = { pad: 'sides', extra: 0, menuSide: 'left', autoStart: false };
+  const DEFAULT_SETTINGS = { pad: 'sides', extra: 0, menuSide: 'left', autoStart: false, swipe: 'finger' };
 
   function loadSettings() {
     try {
@@ -523,6 +523,7 @@
         extra: Number.isFinite(s.extra) ? Math.max(0, Math.min(40, s.extra)) : DEFAULT_SETTINGS.extra,
         menuSide: s.menuSide === 'right' ? 'right' : 'left',
         autoStart: s.autoStart === true,
+        swipe: s.swipe === 'scroll' ? 'scroll' : 'finger',
       };
     } catch { return { ...DEFAULT_SETTINGS }; }
   }
@@ -535,8 +536,9 @@
     wrap.classList.add('pad-' + settings.pad);
     wrap.classList.toggle('menu-right', settings.menuSide === 'right');
     wrap.style.setProperty('--x', settings.extra + 'px');
-    for (const seg of $$('.segmented[data-setting="pad"]')) {
-      for (const b of seg.querySelectorAll('button')) b.classList.toggle('on', b.dataset.value === settings.pad);
+    for (const seg of $$('.segmented[data-setting]')) {
+      const current = String(settings[seg.dataset.setting]);
+      for (const b of seg.querySelectorAll('button')) b.classList.toggle('on', b.dataset.value === current);
     }
     for (const r of $$('input[data-setting="extra"]')) r.value = String(settings.extra);
     for (const o of $$('output[data-out="extra"]')) o.textContent = settings.extra + 'px';
@@ -544,9 +546,19 @@
   }
 
   function saveSettings(patch) {
+    const swipeBefore = settings.swipe;
     settings = { ...settings, ...patch };
     try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch { /* 무시 */ }
     applySettings();
+    if (settings.swipe !== swipeBefore) {
+      syncGameSettings();
+      if (document.body.classList.contains('playing')) toast('스와이프 방향은 다음에 게임을 시작할 때부터 적용됩니다.');
+    }
+  }
+
+  // 서비스 워커가 게임 파일을 내줄 때 읽는 설정 (메뉴·미니게임 스와이프 방향)
+  function syncGameSettings() {
+    return writeMetaJson('settings.json', { swipe: settings.swipe }).catch((err) => console.warn(err));
   }
 
   // ---------------------------------------------------------------------------
@@ -665,10 +677,10 @@
     });
     $('#btn-wipe').addEventListener('click', wipeGameData);
 
-    for (const seg of $$('.segmented[data-setting="pad"]')) {
+    for (const seg of $$('.segmented[data-setting]')) {
       seg.addEventListener('click', (e) => {
         const v = e.target.closest('button')?.dataset.value;
-        if (v) saveSettings({ pad: v });
+        if (v) saveSettings({ [seg.dataset.setting]: v });
       });
     }
     for (const r of $$('input[data-setting="extra"]')) {
@@ -724,6 +736,7 @@
         toast('서비스 워커 등록 실패: ' + (err?.message || err), true);
       });
     await state.swReady;
+    await syncGameSettings();
     await refreshStatus();
 
     const updateWaiting = state.release && state.active && state.release.buildId !== state.active.buildId;

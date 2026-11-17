@@ -87,6 +87,12 @@
       <label class="slider">추가 여백 <output data-out="extra">0px</output>
         <input type="range" min="0" max="40" step="2" data-setting="extra">
       </label>
+      <h2 class="sub-h">메뉴·미니게임 스와이프 방향</h2>
+      <div class="segmented" data-setting="swipe">
+        <button type="button" data-value="finger">손가락 방향</button>
+        <button type="button" data-value="scroll">게임 원래대로</button>
+      </div>
+      <p class="hint small">메뉴·미니게임 화면에서 손가락을 밀 때 커서가 움직이는 방향입니다. 게임 원래 방식은 목록 스크롤처럼 반대로 움직입니다. 바꾸면 다음에 게임을 시작할 때부터 적용됩니다.</p>
     </section>
 
     <details class="card" id="advanced">
@@ -110,6 +116,7 @@
     <button type="button" id="btn-menu" aria-label="실행기 메뉴">⋯</button>
     <div id="game-menu" role="dialog" aria-label="실행기 메뉴" hidden>
       <div class="sheet">
+        <div class="sheet-col">
         <h2>화면 여백</h2>
         <div class="segmented" data-setting="pad">
           <button type="button" data-value="sides">좌우만</button>
@@ -119,6 +126,13 @@
         <label class="slider">추가 여백 <output data-out="extra">0px</output>
           <input type="range" min="0" max="40" step="2" data-setting="extra">
         </label>
+        <h2 class="sub-h">스와이프 방향 <span class="hint small">(다음 시작부터)</span></h2>
+        <div class="segmented" data-setting="swipe">
+          <button type="button" data-value="finger">손가락 방향</button>
+          <button type="button" data-value="scroll">게임 원래대로</button>
+        </div>
+        </div>
+        <div class="sheet-col">
         <div class="row">
           <button type="button" id="btn-menu-side" class="secondary">⋯ 버튼 반대쪽으로</button>
           <button type="button" id="btn-menu-export" class="secondary">백업 내보내기</button>
@@ -128,6 +142,7 @@
           <button type="button" id="btn-menu-close" class="primary">닫기</button>
         </div>
         <p class="hint small">나가기 전에 게임 안에서 저장하세요.</p>
+        </div>
       </div>
     </div>
   </div>
