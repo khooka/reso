@@ -1,12 +1,12 @@
 {
   "format": 1,
-  "buildId": "83172591c803c3336e723bf9cc0d4f4bfdef2d8771f24b6756bc2ba52dddb060",
-  "gameVersion": "3.0.0",
-  "manifestUrl": "manifest-83172591c803c3336e723bf9cc0d4f4bfdef2d8771f24b6756bc2ba52dddb060.json",
-  "manifestBytes": 4390863,
-  "totalBytes": 1135724634,
-  "fileCount": 52589,
-  "packCount": 411,
+  "buildId": "0f1a6d28a34d88ce3481f5a47810cda5574dc1f52de75c03f739613a1a9a88e6",
+  "gameVersion": "3.1.0",
+  "manifestUrl": "manifest-0f1a6d28a34d88ce3481f5a47810cda5574dc1f52de75c03f739613a1a9a88e6.json",
+  "manifestBytes": 4482323,
+  "totalBytes": 1141447119,
+  "fileCount": 53654,
+  "packCount": 414,
   "minimumIOS": "18.4",
-  "archiveBytes": 941173301
+  "archiveBytes": 942570111
 }
